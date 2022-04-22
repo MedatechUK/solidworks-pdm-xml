@@ -1,18 +1,18 @@
 from xml.etree import ElementTree as ET
 import pyodbc
-import time    
-
+import time
+ 
 conn = pyodbc.connect('Driver={ODBC Driver 17 for SQL Server};'
-                      'Server=MEDA-LTP2620\PRI;'
-                      'Database=demo;'
+                      'Server=PRIORITYSQL\PRI;'
+                      'Database=gamec2;'
                       'UID=tabula;'
-                      'PWD=<Pass>')
+                      'PWD=15-small-head-phones')
 
 cursor = conn.cursor()
-# cursor.execute('SELECT * FROM ORDERS')
 
-# for i in cursor:
-#     print(i)
+def get_max_line():
+    cursor.execute('SELECT MAX(LINE) FROM ZSFDC_LOADECO_M;')
+    return cursor.fetchone()[0]
 
 def get_attributes(config):
     part_name = config.find("*[@name='Number']").attrib['value']
@@ -36,39 +36,44 @@ def get_attributes(config):
             'description': description, 'factory_unit': factory_unit, 'pdf_location': pdf_location, 'details': details, 
             'eco_reason_code': eco_reason_code, 'code': code, 'state': state, 'reference_count': reference_count}                                                     
 
-doc = ET.parse('./XML/GB1b-5220-99-00.XML').getroot()
+doc = ET.parse('./XML-Input/GB1b-5220-99-00.XML').getroot()
 
 configuration = doc.find('./transactions/transaction/document/configuration')
    
 # get all attributes for the parent part
 attributes = configuration.findall('attribute')
 
-print("---- Parent attributes ----")
+# print("---- Parent attributes ----")
 attributes = get_attributes(configuration)
 
-# sql = '''INSERT INTO ZSFDC_LOADECO_M (RECORDTYPE, CURDATE, FROMDATE, DETAILS, OWNERLOGIN, ECOREASONCODE) 
-#           VALUES (%s, %s, %s, %s, %s, %s)'''
-# val = ("1", time.strftime('%d/%m/%Y'), time.strftime('%d/%m/%Y'), attributes['details'], attributes['assigned_to'], attributes['eco_reason_code'])
-# cursor.execute(sql, val)
-# mydb.commit()
+# datetime(year=2017, month=3, day=1, hour=0, minute=0, second=1)
+max_line = get_max_line()
+sql = '''INSERT INTO ZSFDC_LOADECO_M (LINE, RECORDTYPE, CURDATE, FROMDATE, DETAILS, OWNERLOGIN, ECOREASONCODE) 
+          VALUES (?, ?, ?, ?, ?, ?, ?)'''
+val = (max_line, "1",int(time.time()), int(time.time()), attributes['details'], attributes['assigned_to'], attributes['eco_reason_code'])
+cursor.execute(sql, val)
+conn.commit()
 
-# sql = '''INSERT INTO ZSFDC_LOADECO_M (RECORDTYPE, CURDATE, FROMDATE, PARTNAME, PARTDES, PUNITNAME, UNITNAME, TYPE, CONV, FAMILYNAME) 
-#           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)'''
-# val = ("2", time.strftime('%d/%m/%Y'), time.strftime('%d/%m/%Y'), attributes['part_name'], attributes['description'], attributes['buy_sell_unit'], attributes['factory_unit'], attributes['part_type'], attributes['conversion_ratio'], attributes['part_family'])
-# cursor.execute(sql, val)
-# mydb.commit()
+max_line = get_max_line()
+sql = '''INSERT INTO ZSFDC_LOADECO_M (LINE, RECORDTYPE, CURDATE, FROMDATE, PARTNAME, PARTDES, PUNITNAME, UNITNAME, TYPE, CONV, FAMILYNAME) 
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+val = (max_line, "2",int(time.time()),int(time.time()), attributes['part_name'], attributes['description'], attributes['buy_sell_unit'], attributes['factory_unit'], attributes['part_type'], attributes['conversion_ratio'], attributes['part_family'])
+cursor.execute(sql, val)
+conn.commit()
 
-# sql = '''INSERT INTO ZSFDC_LOADECO_M (RECORDTYPE, CURDATE, FROMDATE, FILEDATE, EXTFILENAME, NUMBER) 
-#           VALUES (%s, %s, %s, %s, %s, %s)'''
-# val = ("3", time.strftime('%d/%m/%Y'), time.strftime('%d/%m/%Y'), time.strftime('%d/%m/%Y'), attributes['pdf_location'], attributes['code'])
-# cursor.execute(sql, val)
-# mydb.commit()
+max_line = get_max_line()
+sql = '''INSERT INTO ZSFDC_LOADECO_M (LINE, RECORDTYPE, CURDATE, FROMDATE, FILEDATE, EXTFILENAME, NUMBER) 
+          VALUES (?, ?, ?, ?, ?, ?, ?)'''
+val = (max_line, "3",int(time.time()),int(time.time()),int(time.time()), attributes['pdf_location'], attributes['code'])
+cursor.execute(sql, val)
+conn.commit()
 
-# sql = '''INSERT INTO ZSFDC_LOADECO_M (RECORDTYPE, CURDATE, FROMDATE, REVNUM) 
-#           VALUES (%s, %s, %s, %s)'''
-# val = ("4", time.strftime('%d/%m/%Y'), time.strftime('%d/%m/%Y'), attributes['bom_revision'])
-# cursor.execute(sql, val)
-# mydb.commit()
+max_line = get_max_line()
+sql = '''INSERT INTO ZSFDC_LOADECO_M (LINE, RECORDTYPE, CURDATE, FROMDATE, REVNUM) 
+          VALUES (?, ?, ?, ?, ?)'''
+val = (max_line, "4",int(time.time()),int(time.time()), attributes['bom_revision'])
+cursor.execute(sql, val)
+conn.commit()
 
 # get first level child parts
 references = configuration.find('references')
@@ -81,12 +86,13 @@ if references is not None:
     for document in documents:
         configuration = document.find('configuration')
         attributes = configuration.findall('attribute')
-        print("---- Child attributes ----")                              
+        # print("---- Child attributes ----")                              
         attributes = get_attributes(configuration)
         
-        # sql = '''INSERT INTO ZSFDC_LOADECO_M (RECORDTYPE, CURDATE, FROMDATE, SONNAME, SONREVNAME) 
-        #           VALUES (%s, %s, %s, %s, %s)'''
-        # val = ("5", time.strftime('%d/%m/%Y'), time.strftime('%d/%m/%Y'), attributes['part_name'], attributes['bom_revision'])
-        # cursor.execute(sql, val)
-        # mydb.commit()  
+        max_line = get_max_line()
+        sql = '''INSERT INTO ZSFDC_LOADECO_M (LINE, RECORDTYPE, CURDATE, FROMDATE, SONNAME, SONREVNAME) 
+                  VALUES (?, ?, ?, ?, ?, ?)'''
+        val = (max_line, "5",int(time.time()),int(time.time()), attributes['part_name'], attributes['bom_revision'])
+        cursor.execute(sql, val)
+        conn.commit()  
                                          
