@@ -1,14 +1,30 @@
 from xml.etree import ElementTree as ET
 import pyodbc
-import time
- 
-conn = pyodbc.connect('Driver={ODBC Driver 17 for SQL Server};'
+from datetime import datetime, timedelta
+import uuid
+import os
+import shutil
+
+conn = pyodbc.connect('Driver={SQL Server};'
                       'Server=PRIORITYSQL\PRI;'
-                      'Database=gamec2;'
+                      'Database=demo;'
                       'UID=tabula;'
-                      'PWD=15-small-head-phones')
+                      'PWD=(game)T4bul4!')
 
 cursor = conn.cursor()
+
+def get_pri_time():
+    fmt = '%d/%m/%y'
+
+    d1 = datetime.strptime('01/01/88', fmt)
+    d2 = datetime.strptime(datetime.now().strftime('%d/%m/%y'), fmt)
+
+    daysDiff = (d2-d1).days
+
+    # Convert days to minutes
+    minutesDiff = daysDiff * 24 * 60
+
+    return minutesDiff
 
 def get_max_line():
     cursor.execute('SELECT MAX(LINE) FROM ZSFDC_LOADECO_M;')
@@ -36,63 +52,86 @@ def get_attributes(config):
             'description': description, 'factory_unit': factory_unit, 'pdf_location': pdf_location, 'details': details, 
             'eco_reason_code': eco_reason_code, 'code': code, 'state': state, 'reference_count': reference_count}                                                     
 
-doc = ET.parse('./XML-Input/GB1b-5220-99-00.XML').getroot()
+def parse_xml(path):
+    myuuid = str(uuid.uuid4())
+    # print(myuuid)
 
-configuration = doc.find('./transactions/transaction/document/configuration')
-   
-# get all attributes for the parent part
-attributes = configuration.findall('attribute')
+    doc = ET.parse(path).getroot()
 
-# print("---- Parent attributes ----")
-attributes = get_attributes(configuration)
+    configuration = doc.find('./transactions/transaction/document/configuration')
+    
+    # get all attributes for the parent part
+    attributes = configuration.findall('attribute')
 
-# datetime(year=2017, month=3, day=1, hour=0, minute=0, second=1)
-max_line = get_max_line()
-sql = '''INSERT INTO ZSFDC_LOADECO_M (LINE, RECORDTYPE, CURDATE, FROMDATE, DETAILS, OWNERLOGIN, ECOREASONCODE) 
-          VALUES (?, ?, ?, ?, ?, ?, ?)'''
-val = (max_line, "1",int(time.time()), int(time.time()), attributes['details'], attributes['assigned_to'], attributes['eco_reason_code'])
-cursor.execute(sql, val)
-conn.commit()
+    # print("---- Parent attributes ----")
+    attributes = get_attributes(configuration)
+    print(attributes)
 
-max_line = get_max_line()
-sql = '''INSERT INTO ZSFDC_LOADECO_M (LINE, RECORDTYPE, CURDATE, FROMDATE, PARTNAME, PARTDES, PUNITNAME, UNITNAME, TYPE, CONV, FAMILYNAME) 
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
-val = (max_line, "2",int(time.time()),int(time.time()), attributes['part_name'], attributes['description'], attributes['buy_sell_unit'], attributes['factory_unit'], attributes['part_type'], attributes['conversion_ratio'], attributes['part_family'])
-cursor.execute(sql, val)
-conn.commit()
+    # datetime(year=2017, month=3, day=1, hour=0, minute=0, second=1)
+    max_line = get_max_line()
+    # print(max_line)
+    sql = '''INSERT INTO ZSFDC_LOADECO_M (LINE, BUBBLEID, RECORDTYPE, CURDATE, FROMDATE, DETAILS, OWNERLOGIN, ECOREASONCODE) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)'''
+    val = (max_line + 1, myuuid, "1", get_pri_time(), get_pri_time(), attributes['details'], attributes['assigned_to'], attributes['eco_reason_code'])
 
-max_line = get_max_line()
-sql = '''INSERT INTO ZSFDC_LOADECO_M (LINE, RECORDTYPE, CURDATE, FROMDATE, FILEDATE, EXTFILENAME, NUMBER) 
-          VALUES (?, ?, ?, ?, ?, ?, ?)'''
-val = (max_line, "3",int(time.time()),int(time.time()),int(time.time()), attributes['pdf_location'], attributes['code'])
-cursor.execute(sql, val)
-conn.commit()
+    cursor.execute(sql, val)
+    # conn.commit()
 
-max_line = get_max_line()
-sql = '''INSERT INTO ZSFDC_LOADECO_M (LINE, RECORDTYPE, CURDATE, FROMDATE, REVNUM) 
-          VALUES (?, ?, ?, ?, ?)'''
-val = (max_line, "4",int(time.time()),int(time.time()), attributes['bom_revision'])
-cursor.execute(sql, val)
-conn.commit()
+    max_line = get_max_line()
+    sql = '''INSERT INTO ZSFDC_LOADECO_M (LINE, BUBBLEID, RECORDTYPE, CURDATE, FROMDATE, PARTNAME, PARTDES, PUNITNAME, UNITNAME, TYPE, CONV, FAMILYNAME) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+    val = (max_line + 1, myuuid, "2", get_pri_time(), get_pri_time(), attributes['part_name'][0:15], attributes['description'], attributes['buy_sell_unit'], attributes['factory_unit'], attributes['part_type'], attributes['conversion_ratio'], attributes['part_family'])
+    cursor.execute(sql, val)
+    # conn.commit()
 
-# get first level child parts
-references = configuration.find('references')
+    max_line = get_max_line()
+    sql = '''INSERT INTO ZSFDC_LOADECO_M (LINE, BUBBLEID, RECORDTYPE, CURDATE, FROMDATE, FILEDATE, EXTFILENAME, NUMBER) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)'''
+    val = (max_line + 1, '123', "3",get_pri_time(),get_pri_time(),get_pri_time(), attributes['pdf_location'], attributes['code'])
+    cursor.execute(sql, val)
+    # conn.commit()
 
-# Check if child exist before continuing
-if references is not None:
-    documents = references.findall('document')
+    max_line = get_max_line()
+    sql = '''INSERT INTO ZSFDC_LOADECO_M (LINE, BUBBLEID, RECORDTYPE, CURDATE, FROMDATE, REVNUM) 
+            VALUES (?, ?, ?, ?, ?, ?)'''
+    val = (max_line + 1, myuuid, "4",get_pri_time(),get_pri_time(), attributes['bom_revision'])
+    cursor.execute(sql, val)
+    # conn.commit()
 
-    # get all attributes for the child part
-    for document in documents:
-        configuration = document.find('configuration')
-        attributes = configuration.findall('attribute')
-        # print("---- Child attributes ----")                              
-        attributes = get_attributes(configuration)
-        
-        max_line = get_max_line()
-        sql = '''INSERT INTO ZSFDC_LOADECO_M (LINE, RECORDTYPE, CURDATE, FROMDATE, SONNAME, SONREVNAME) 
-                  VALUES (?, ?, ?, ?, ?, ?)'''
-        val = (max_line, "5",int(time.time()),int(time.time()), attributes['part_name'], attributes['bom_revision'])
-        cursor.execute(sql, val)
-        conn.commit()  
-                                         
+    # get first level child parts
+    references = configuration.find('references')
+
+    # Check if child exist before continuing
+    if references is not None:
+        documents = references.findall('document')
+
+        # get all attributes for the child part
+        for document in documents:
+            configuration = document.find('configuration')
+            attributes = configuration.findall('attribute')
+            # print("---- Child attributes ----")                              
+            attributes = get_attributes(configuration)
+            
+            max_line = get_max_line()
+            sql = '''INSERT INTO ZSFDC_LOADECO_M (LINE, BUBBLEID, RECORDTYPE, CURDATE, FROMDATE, SONNAME, SONREVNAME) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?)'''
+            val = (max_line + 1, myuuid, "5",get_pri_time(),get_pri_time(), attributes['part_name'][0:15], attributes['bom_revision'])
+            cursor.execute(sql, val)
+            # conn.commit()  
+
+    conn.commit() 
+
+def handle_files():
+    input_dir = os.fsencode('XML-Input')
+
+    for file in os.listdir(input_dir):
+        filename = os.fsdecode(file)
+        if filename.endswith(".XML"):
+            parse_xml(os.path.join('XML-Input', filename))
+            path_to_current_file = os.path.join('XML-Input', filename)
+            path_to_new_file = os.path.join('XML-Loaded', filename)
+            shutil.move(path_to_current_file, path_to_new_file)
+
+if __name__ == "__main__":
+#   handle_files()
+    handle_files()
