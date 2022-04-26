@@ -87,7 +87,7 @@ def parse_xml(path):
     max_line = get_max_line()
     sql = '''INSERT INTO ZSFDC_LOADECO_M (LINE, BUBBLEID, RECORDTYPE, CURDATE, FROMDATE, FILEDATE, EXTFILENAME, NUMBER) 
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)'''
-    val = (max_line + 1, '123', "3",get_pri_time(),get_pri_time(),get_pri_time(), attributes['pdf_location'], attributes['code'])
+    val = (max_line + 1, myuuid, "3",get_pri_time(),get_pri_time(),get_pri_time(), attributes['pdf_location'], attributes['code'])
     cursor.execute(sql, val)
     # conn.commit()
 
@@ -133,5 +133,10 @@ def handle_files():
             shutil.move(path_to_current_file, path_to_new_file)
 
 if __name__ == "__main__":
-#   handle_files()
+    # parse_xml("XML-Input/GB1-3910-15-00.XML")
     handle_files()
+
+#TODO: Error logging
+# Create a procedure in priority that looks if the file exists in a given location and pass the filename
+# one by one to the python program
+# can an executable.
