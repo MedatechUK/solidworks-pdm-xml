@@ -140,3 +140,10 @@ if __name__ == "__main__":
 # Create a procedure in priority that looks if the file exists in a given location and pass the filename
 # one by one to the python program
 # can an executable.
+
+# below takes first argument
+# import sys
+
+# if __name__ == "__main__":
+#     if len(sys.argv)>1:
+#         print sys.argv[1]
