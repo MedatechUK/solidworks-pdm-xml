@@ -1,0 +1,19 @@
+Exception in thread Thread-1:
+Traceback (most recent call last):
+  File "C:\Python\Python310\lib\threading.py", line 1009, in _bootstrap_inner
+    self.run()
+  File "C:\Python\Python310\lib\site-packages\watchdog\observers\api.py", line 205, in run
+    self.dispatch_events(self.event_queue)
+  File "C:\Python\Python310\lib\site-packages\watchdog\observers\api.py", line 381, in dispatch_events
+    handler.dispatch(event)
+  File "C:\Python\Python310\lib\site-packages\watchdog\events.py", line 403, in dispatch
+    super().dispatch(event)
+  File "C:\Python\Python310\lib\site-packages\watchdog\events.py", line 272, in dispatch
+    {
+  File "E:\solidworks-pdm-xml\main.py", line 169, in on_created
+    handle_files()
+  File "E:\solidworks-pdm-xml\main.py", line 142, in handle_files
+    parse_xml(os.path.join('XML-Input', filename))
+  File "E:\solidworks-pdm-xml\main.py", line 86, in parse_xml
+    cursor.execute(sql, val)
+pyodbc.IntegrityError: ('23000', '[23000] [Microsoft][ODBC SQL Server Driver][SQL Server]Duplicate key was ignored. (3604) (SQLExecDirectW)')
