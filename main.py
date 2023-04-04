@@ -8,20 +8,23 @@ import time
 from watchdog.observers import Observer
 from watchdog.events import PatternMatchingEventHandler
 
-
+# Connect to SQL Server with the given connection string
 conn = pyodbc.connect('Driver={SQL Server};'
                       'Server=PRIORITYSQL\PRI;'
                       'Database=gamec2;'
                       'UID=tabula;'
                       'PWD=(game)T4bul4!')
 
+# Create a cursor object to execute SQL queries on the connection
 cursor = conn.cursor()
 
+# Define a function to start logging errors to a file named error.log
 def start_logging():
     path = r"error.log"
     logging.basicConfig(filename=path, level=logging.DEBUG, format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
     logging.info('ECO EPDM started.')
 
+# Define a function to get the number of minutes since 01/01/88 until now
 def get_pri_time():
     fmt = '%d/%m/%y'
 
@@ -35,10 +38,12 @@ def get_pri_time():
 
     return minutesDiff
 
+# Function to get the maximum value of the LINE column from a table named ZSFDC_LOADECO
 def get_max_line():
     cursor.execute('SELECT MAX(LINE) FROM ZSFDC_LOADECO;')
     return cursor.fetchone()[0]
 
+# Finds the xML attributes by name and structures them into a JSON array
 def get_attributes(config):
     part_name = config.find("*[@name='Number']").attrib['value']
     part_family = config.find("*[@name='Part Family']").attrib['value']
@@ -62,50 +67,46 @@ def get_attributes(config):
             'eco_reason_code': eco_reason_code, 'code': code, 'state': state, 'reference_count': reference_count}                                                     
 
 def parse_xml(path):
+    # Generate a unique ID for the data being inserted
     myuuid = str(uuid.uuid4())
-    # print(myuuid)
 
+    # Parse the XML file and get the root element
     doc = ET.parse(path).getroot()
 
+    # Find the 'configuration' element within the 'transactions/transaction/document' path
     configuration = doc.find('./transactions/transaction/document/configuration')
     
-    # get all attributes for the parent part
+    # Get all attributes for the parent part
     attributes = configuration.findall('attribute')
 
     # print("---- Parent attributes ----")
     attributes = get_attributes(configuration)
-    # print(attributes)
-
-    # datetime(year=2017, month=3, day=1, hour=0, minute=0, second=1)
+    
+    # Get the current maximum line number in the ZSFDC_LOADECO table
     max_line = get_max_line()
-    # print(max_line)
     sql = '''INSERT INTO ZSFDC_LOADECO (LINE, BUBBLEID, RECORDTYPE, CURDATE, FROMDATE, DETAILS, OWNERLOGIN, ECOREASONCODE) 
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)'''
     val = (max_line + 1, myuuid, "1", get_pri_time(), get_pri_time(), attributes['details'], attributes['assigned_to'], attributes['eco_reason_code'])
 
     cursor.execute(sql, val)
-    # conn.commit()
 
     max_line = get_max_line()
     sql = '''INSERT INTO ZSFDC_LOADECO (LINE, BUBBLEID, RECORDTYPE, CURDATE, FROMDATE, PARTNAME, PARTDES, PUNITNAME, UNITNAME, TYPE, CONV, FAMILYNAME) 
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
     val = (max_line + 1, myuuid, "2", get_pri_time(), get_pri_time(), attributes['part_name'][0:15], attributes['description'], attributes['buy_sell_unit'], attributes['factory_unit'], attributes['part_type'], attributes['conversion_ratio'], attributes['part_family'])
     cursor.execute(sql, val)
-    # conn.commit()
 
     max_line = get_max_line()
     sql = '''INSERT INTO ZSFDC_LOADECO (LINE, BUBBLEID, RECORDTYPE, CURDATE, FROMDATE, FILEDATE, EXTFILENAME, NUMBER) 
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)'''
     val = (max_line + 1, myuuid, "3",get_pri_time(),get_pri_time(),get_pri_time(), attributes['pdf_location'], attributes['code'])
     cursor.execute(sql, val)
-    # conn.commit()
 
     max_line = get_max_line()
     sql = '''INSERT INTO ZSFDC_LOADECO (LINE, BUBBLEID, RECORDTYPE, CURDATE, FROMDATE, REVNUM) 
             VALUES (?, ?, ?, ?, ?, ?)'''
     val = (max_line + 1, myuuid, "4",get_pri_time(),get_pri_time(), attributes['bom_revision'])
     cursor.execute(sql, val)
-    # conn.commit()
 
     # get first level child parts
     references = configuration.find('references')
@@ -126,7 +127,6 @@ def parse_xml(path):
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)'''
             val = (max_line + 1, myuuid, "5",get_pri_time(),get_pri_time(), attributes['part_name'][0:15], attributes['bom_revision'], float(attributes['reference_count']))
             cursor.execute(sql, val)
-            # conn.commit()  
 
     conn.commit()
     logging.info(f"File {path} parsed and loaded into table.")
