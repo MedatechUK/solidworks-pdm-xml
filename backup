@@ -36,7 +36,7 @@ def get_pri_time():
     return minutesDiff
 
 def get_max_line():
-    cursor.execute('SELECT MAX(LINE) FROM ZSFDC_LOADECO;')
+    cursor.execute('SELECT MAX(LINE) FROM ZSFDC_LOADECO_M;')
     return cursor.fetchone()[0]
 
 def get_attributes(config):
@@ -79,7 +79,7 @@ def parse_xml(path):
     # datetime(year=2017, month=3, day=1, hour=0, minute=0, second=1)
     max_line = get_max_line()
     # print(max_line)
-    sql = '''INSERT INTO ZSFDC_LOADECO (LINE, BUBBLEID, RECORDTYPE, CURDATE, FROMDATE, DETAILS, OWNERLOGIN, ECOREASONCODE) 
+    sql = '''INSERT INTO ZSFDC_LOADECO_M (LINE, BUBBLEID, RECORDTYPE, CURDATE, FROMDATE, DETAILS, OWNERLOGIN, ECOREASONCODE) 
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)'''
     val = (max_line + 1, myuuid, "1", get_pri_time(), get_pri_time(), attributes['details'], attributes['assigned_to'], attributes['eco_reason_code'])
 
@@ -87,21 +87,21 @@ def parse_xml(path):
     # conn.commit()
 
     max_line = get_max_line()
-    sql = '''INSERT INTO ZSFDC_LOADECO (LINE, BUBBLEID, RECORDTYPE, CURDATE, FROMDATE, PARTNAME, PARTDES, PUNITNAME, UNITNAME, TYPE, CONV, FAMILYNAME) 
+    sql = '''INSERT INTO ZSFDC_LOADECO_M (LINE, BUBBLEID, RECORDTYPE, CURDATE, FROMDATE, PARTNAME, PARTDES, PUNITNAME, UNITNAME, TYPE, CONV, FAMILYNAME) 
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
     val = (max_line + 1, myuuid, "2", get_pri_time(), get_pri_time(), attributes['part_name'][0:15], attributes['description'], attributes['buy_sell_unit'], attributes['factory_unit'], attributes['part_type'], attributes['conversion_ratio'], attributes['part_family'])
     cursor.execute(sql, val)
     # conn.commit()
 
     max_line = get_max_line()
-    sql = '''INSERT INTO ZSFDC_LOADECO (LINE, BUBBLEID, RECORDTYPE, CURDATE, FROMDATE, FILEDATE, EXTFILENAME, NUMBER) 
+    sql = '''INSERT INTO ZSFDC_LOADECO_M (LINE, BUBBLEID, RECORDTYPE, CURDATE, FROMDATE, FILEDATE, EXTFILENAME, NUMBER) 
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)'''
     val = (max_line + 1, myuuid, "3",get_pri_time(),get_pri_time(),get_pri_time(), attributes['pdf_location'], attributes['code'])
     cursor.execute(sql, val)
     # conn.commit()
 
     max_line = get_max_line()
-    sql = '''INSERT INTO ZSFDC_LOADECO (LINE, BUBBLEID, RECORDTYPE, CURDATE, FROMDATE, REVNUM) 
+    sql = '''INSERT INTO ZSFDC_LOADECO_M (LINE, BUBBLEID, RECORDTYPE, CURDATE, FROMDATE, REVNUM) 
             VALUES (?, ?, ?, ?, ?, ?)'''
     val = (max_line + 1, myuuid, "4",get_pri_time(),get_pri_time(), attributes['bom_revision'])
     cursor.execute(sql, val)
@@ -120,11 +120,11 @@ def parse_xml(path):
             attributes = configuration.findall('attribute')
             # print("---- Child attributes ----")                              
             attributes = get_attributes(configuration)
-            # print(attributes)
+            
             max_line = get_max_line()
-            sql = '''INSERT INTO ZSFDC_LOADECO (LINE, BUBBLEID, RECORDTYPE, CURDATE, FROMDATE, SONNAME, SONREVNAME, SONQUANT) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)'''
-            val = (max_line + 1, myuuid, "5",get_pri_time(),get_pri_time(), attributes['part_name'][0:15], attributes['bom_revision'], float(attributes['reference_count']))
+            sql = '''INSERT INTO ZSFDC_LOADECO_M (LINE, BUBBLEID, RECORDTYPE, CURDATE, FROMDATE, SONNAME, SONREVNAME) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?)'''
+            val = (max_line + 1, myuuid, "5",get_pri_time(),get_pri_time(), attributes['part_name'][0:15], attributes['bom_revision'])
             cursor.execute(sql, val)
             # conn.commit()  
 
@@ -145,8 +145,7 @@ def handle_files():
             shutil.move(path_to_current_file, path_to_new_file)
 
 def run_load_proc():
-    print("Loading procedure will be ran by tabula task scheduler.")
-    # os.system('cmd /c "E:/Priority/bin.95/winrun "" tabula (game)T4bul4! E:\Priority\system\prep gamec2 WINACTIV -P ZSFDC_LOADECO"')
+    os.system('cmd /c "E:/Priority/bin.95/winrun "" tabula (game)T4bul4! E:\Priority\system\prep kattest WINACTIV -P ZSFDC_LOADECO"')
 
 def folder_event_handler():
     patterns = ["*"]
